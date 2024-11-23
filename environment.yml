@@ -2,18 +2,14 @@ name: evo-design
 channels:
   - pytorch
   - nvidia
-  - bioconda
   - conda-forge
   - defaults
 dependencies:
-- bioconda:prodigal
 - python=3.11
 - pytorch
 - pytorch-cuda=11.8
 - pip
 - pip:
-  - stripedhyena==0.2.2
-  - biopython
-  - biotite
+  - evo-model
   - pandas
   - datasets  # HuggingFace datasets library
