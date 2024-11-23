@@ -2,11 +2,10 @@ import torch
 import numpy as np
 from evo.scoring import prepare_batch, logits_to_logprobs
 
-def collect_logits(model, sequences, tokenizer, batch_size=2, device='cuda'):
+def collect_logits(model, sequences, tokenizer, batch_size=10, device='cuda'):
     """Collect logits and input_ids from sequences in memory-efficient batches."""
     all_logits = []
     all_input_ids = []
-    model = model.cpu()
     
     for i in range(0, len(sequences), batch_size):
         batch_sequences = sequences[i:i + batch_size]
@@ -16,30 +15,40 @@ def collect_logits(model, sequences, tokenizer, batch_size=2, device='cuda'):
                 batch_sequences,
                 tokenizer,
                 prepend_bos=True,
-                device='cpu'
+                device=device
             )
             
-            model = model.to(device)
-            input_ids = input_ids.to(device)
+            # Print memory usage before forward pass
+            gpu_mem_before = torch.cuda.memory_allocated()/1e9
             
             with torch.inference_mode():
                 logits, *_ = model(input_ids)
-                logits = logits.cpu()
-                # Store both logits and input_ids
-                split_logits = torch.split(logits, 1)
-                split_input_ids = torch.split(input_ids.cpu(), 1)
                 
+                # Print memory at peak (after forward pass, before moving to CPU)
+                gpu_mem_peak = torch.cuda.memory_allocated()/1e9
+                
+                logits = logits.cpu()
+                input_ids = input_ids.cpu()
+                
+                # Print memory after moving to CPU
+                gpu_mem_after = torch.cuda.memory_allocated()/1e9
+                
+                print(f"Batch {i//batch_size + 1} (size {len(batch_sequences)}): "
+                      f"GPU Memory - Before: {gpu_mem_before:.2f}GB, "
+                      f"Peak: {gpu_mem_peak:.2f}GB, "
+                      f"After cleanup: {gpu_mem_after:.2f}GB")
+                
+                split_logits = torch.split(logits, 1)
+                split_input_ids = torch.split(input_ids, 1)
                 all_logits.extend([l.detach() for l in split_logits])
                 all_input_ids.extend([ids.detach() for ids in split_input_ids])
-            
-            model = model.cpu()
+
             del logits, input_ids
             torch.cuda.empty_cache()
             
         except RuntimeError as e:
             if "out of memory" in str(e):
                 print(f"OOM error at batch {i}, reducing batch size...")
-                model = model.cpu()
                 torch.cuda.empty_cache()
                 return collect_logits(
                     model, sequences, tokenizer,

@@ -3,7 +3,7 @@ from datasets import load_dataset
 import pandas as pd
 from itertools import islice
 
-def download_genome_splits(max_entries_per_split=2_000_000):
+def download_genome_splits(max_entries_per_split=1_000_000):
     """
     Download and save genome dataset splits, limiting to max_entries_per_split per split.
     
@@ -14,13 +14,14 @@ def download_genome_splits(max_entries_per_split=2_000_000):
         dict: Dictionary containing DataFrames for each split
     """
     # Create directory
-    os.makedirs('stage2', exist_ok=True)
+    os.makedirs('stage1', exist_ok=True)
     
     # Load dataset in streaming mode
-    dataset = load_dataset("LongSafari/open-genome", 'stage2', streaming=True)
+    dataset = load_dataset("LongSafari/open-genome", 'stage1', streaming=True)
     
     splits = {}
-    for split_name in ['train', 'validation', 'test']:
+#    for split_name in ['train', 'validation', 'test']:
+    for split_name in ['train']:
         print(f"\nProcessing {split_name} split...")
         
         # Get the iterator for the current split
@@ -44,7 +45,7 @@ def download_genome_splits(max_entries_per_split=2_000_000):
         df = pd.DataFrame(entries)
         
         # Save to CSV
-        output_path = os.path.join('stage2', f'stage2_{split_name}_{max_entries_per_split}.csv')
+        output_path = os.path.join('stage1', f'stage1_{split_name}_{max_entries_per_split}.csv')
         df.to_csv(output_path, index=False)
         splits[split_name] = df
         

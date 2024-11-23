@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from evo.scoring import prepare_batch, logits_to_logprobs
 
-def collect_hidden_states(model, sequences, tokenizer, batch_size=2, device='cuda'):
+def collect_hidden_states(model, sequences, tokenizer, batch_size=10, device='cuda'):
     """
     Optimized version that keeps model on GPU and manages memory better
     """
