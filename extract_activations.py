@@ -7,8 +7,6 @@ def collect_hidden_states(model, sequences, tokenizer, batch_size=2, device='cud
     Optimized version that keeps model on GPU and manages memory better
     """
     all_layer_states = {i: [] for i in range(len(model.blocks))}
-    total_sequences = len(sequences)
-    last_print = 0
     
     def hook_fn(layer_idx):
         def hook(module, input, output):
@@ -22,11 +20,6 @@ def collect_hidden_states(model, sequences, tokenizer, batch_size=2, device='cud
     
     try:
         for i in range(0, len(sequences), batch_size):
-            end_idx = min(i + batch_size, total_sequences)
-            if (end_idx - last_print >= 10) or (end_idx == total_sequences):
-                print(f"Processing sequence {end_idx}/{total_sequences}")
-                last_print = end_idx
-
             batch = sequences[i:i + batch_size]
             try:
                 torch.cuda.empty_cache()

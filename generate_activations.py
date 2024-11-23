@@ -11,9 +11,15 @@ from subset_by_logits import collect_logits, process_logits
 from extract_activations import collect_hidden_states
 
 def run():
+    print("Starting script...")
     evo_model = Evo('evo-1-8k-base')
+    print("Model loaded")
+
     data = pd.read_csv('./stage2/stage2_validation.csv')
+    print(f"Data loaded: {len(data)} rows")
+
     cleaned_data = data['text'].str.split('|', 2).str[-1]
+    print("Data cleaned")
 
     device = 'cuda'
     model, tokenizer = evo_model.model, evo_model.tokenizer
@@ -24,6 +30,7 @@ def run():
 
     # First collect all logits
     logits, input_ids = collect_logits(model, sequences, tokenizer)
+    print("Finished collecting logits")
 
     # Process them together
     scores, high_indices = process_logits(logits, input_ids, sequences)
@@ -32,6 +39,7 @@ def run():
     high_scoring_sequences = [sequences[i] for i in high_indices]
 
     activations = collect_hidden_states(model, high_scoring_sequences, tokenizer, batch_size=2, device='cuda')
+    print("Finished collecting activations")
 
     save_dir='activation_datasets'
 
