@@ -10,32 +10,42 @@ import gc
 from subset_by_logits import collect_logits, process_logits
 from extract_activations import collect_hidden_states
 
-
-def save_high_scoring_sequences(scores, high_idx, sequences, save_dir='results'):
-    os.makedirs(save_dir, exist_ok=True)
-    
-    # Save high-scoring sequences with their scores
-    high_scoring_seqs = [sequences[i] for i in high_idx]
-    pd.DataFrame({
-        'sequence': high_scoring_seqs,
-        'score': [scores[i] for i in high_idx],
-        'index': high_idx
-    }).to_csv(f'{save_dir}/high_scoring_sequences.csv', index=False)
-
 def run():
     evo_model = Evo('evo-1-8k-base')
     data = pd.read_csv('./stage2/stage2_validation.csv')
     cleaned_data = data['text'].str.split('|', 2).str[-1]
-    
-    device = 'cuda'
-    model = evo_model.model.to(device).eval()
-    
-    scores, _, high_idx = collect_logits_and_score_batch(
-        model, cleaned_data.tolist(), evo_model.tokenizer
-    )
-    
-    save_high_scoring_sequences(scores, high_idx, cleaned_data.tolist())
 
+    device = 'cuda'
+    model, tokenizer = evo_model.model, evo_model.tokenizer
+    model.to(device)
+    model.eval()
+
+    sequences=cleaned_data.tolist()
+
+    # First collect all logits
+    logits, input_ids = collect_logits(model, sequences, tokenizer)
+
+    # Process them together
+    scores, high_indices = process_logits(logits, input_ids, sequences)
+
+    # Get high scoring sequences
+    high_scoring_sequences = [sequences[i] for i in high_indices]
+
+    activations = collect_hidden_states(model, high_scoring_sequences, tokenizer, batch_size=2, device='cuda')
+
+    save_dir='activation_datasets'
+
+    # Create directory if it doesn't exist
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Save activations for each layer
+    for layer_idx, layer_activation in activations.items():
+        save_path = f"{save_dir}/stage2_filtered_layer_{layer_idx}.pt"
+        torch.save(layer_activation, save_path)
+        print(f"Saved layer {layer_idx} ({layer_activation.shape})")
+
+    subset_data = data.iloc[high_indices]
+    subset_data.to_csv(f"{save_dir}/stage2_filtered_labeled_dataset.csv", index=False)
 
 if __name__ == "__main__":
     run()
